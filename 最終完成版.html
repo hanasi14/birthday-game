@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>三花貓 × 黃色小狗 像素大冒險</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #11111b;
+            font-family: 'Courier New', Courier, monospace, sans-serif;
+        }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #0f0f17;
+        }
+        canvas {
+            background-color: #70c5ce;
+            image-rendering: pixelated;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+        }
+        .overlay-screen {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(15, 15, 25, 0.92);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            z-index: 100;
+        }
+        .story-card {
+            background: #2a2a3c;
+            border: 4px solid #f4a261;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 520px;
+            width: 90%;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+        }
+        .story-title {
+            font-size: 24px;
+            color: #e76f51;
+            margin-bottom: 16px;
+            font-weight: bold;
+        }
+        .story-text {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #e9c46a;
+            margin-bottom: 24px;
+            white-space: pre-line;
+        }
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            background: #e76f51;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #b13b20;
+            transition: transform 0.1s;
+        }
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #b13b20;
+        }
+
+        /* 🎮 虛擬遙控手把 UI */
+        .gamepad-container {
+            position: absolute;
+            bottom: 15px;
+            left: 0;
+            width: 100%;
+            height: 140px;
+            pointer-events: none;
+            z-index: 20;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 25px;
+        }
+
+        .dpad {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            pointer-events: auto;
+        }
+        .dpad-btn {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.25);
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            border-radius: 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            touch-action: none;
+        }
+        .dpad-btn:active, .dpad-btn.active {
+            background: rgba(231, 111, 81, 0.85);
+        }
+        .dpad-up { top: 0; left: 40px; width: 40px; height: 40px; }
+        .dpad-down { bottom: 0; left: 40px; width: 40px; height: 40px; }
+        .dpad-left { top: 40px; left: 0; width: 40px; height: 40px; }
+        .dpad-right { top: 40px; right: 0; width: 40px; height: 40px; }
+
+        .action-pad {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            pointer-events: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .jump-btn-pad {
+            width: 75px;
+            height: 75px;
+            background: rgba(233, 196, 106, 0.85);
+            border: 4px solid #fff;
+            border-radius: 50%;
+            color: #2b2b2b;
+            font-weight: bold;
+            font-size: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            touch-action: none;
+            cursor: pointer;
+        }
+        .jump-btn-pad:active {
+            transform: scale(0.92);
+            background: #e76f51;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas" width="800" height="450"></canvas>
+
+    <!-- 引導劇情 -->
+    <div id="intro-screen-1" class="overlay-screen">
+        <div class="story-card">
+            <div class="story-title">🐱 遊戲介紹</div>
+            <div class="story-text">歡迎來到三花貓與黃色小狗的世界！
+操控三花貓，躲避巡邏狗狗與陰險陷阱，收集每關 5 隻小魚通關！</div>
+            <button class="btn" onclick="nextStory(1)">下一步</button>
+        </div>
+    </div>
+
+    <div id="intro-screen-2" class="overlay-screen" style="display: none;">
+        <div class="story-card">
+            <div class="story-text">運用你的智慧吧!人類
+你將在破關後獲得貓貓神的指示</div>
+            <button class="btn" onclick="startGame()">開始遊戲</button>
+        </div>
+    </div>
+
+    <!-- 通關 / 死亡 提示視窗 -->
+    <div id="msg-screen" class="overlay-screen" style="display: none;">
+        <div class="story-card">
+            <div id="msg-title" class="story-title"></div>
+            <div id="msg-content" class="story-text"></div>
+            <div id="msg-btn-group" class="btn-group"></div>
+        </div>
+    </div>
+
+    <!-- 🎮 螢幕遙控手把 -->
+    <div id="gamepad" class="gamepad-container">
+        <div class="dpad">
+            <div class="dpad-btn dpad-up" id="btn-up">▲</div>
+            <div class="dpad-btn dpad-left" id="btn-left">◀</div>
+            <div class="dpad-btn dpad-right" id="btn-right">▶</div>
+            <div class="dpad-btn dpad-down" id="btn-down">▼</div>
+        </div>
+        <div class="action-pad">
+            <div class="jump-btn-pad" id="btn-jump">A</div>
+        </div>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+let gameState = 'INTRO';
+let currentLevel = 0;
+const TOTAL_HEARTS = 10;
+let hearts = TOTAL_HEARTS;
+let levelFishCollected = 0;
+
+const keys = { left: false, right: false, up: false };
+
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+    if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === ' ') {
+        if (!keys.up) player.jump();
+        keys.up = true;
+    }
+});
+window.addEventListener('keyup', (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+    if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === ' ') keys.up = false;
+});
+
+function bindTouchControl(elementId, keyProp, isJump = false) {
+    const el = document.getElementById(elementId);
+    const startPress = (e) => {
+        if (e) e.preventDefault();
+        if (isJump) player.jump();
+        else keys[keyProp] = true;
+        el.classList.add('active');
+    };
+    const endPress = (e) => {
+        if (e) e.preventDefault();
+        if (!isJump) keys[keyProp] = false;
+        el.classList.remove('active');
+    };
+    el.addEventListener('touchstart', startPress);
+    el.addEventListener('touchend', endPress);
+    el.addEventListener('touchcancel', endPress);
+    el.addEventListener('mousedown', startPress);
+    el.addEventListener('mouseup', endPress);
+    el.addEventListener('mouseleave', endPress);
+}
+
+bindTouchControl('btn-left', 'left');
+bindTouchControl('btn-right', 'right');
+bindTouchControl('btn-up', 'up', true);
+bindTouchControl('btn-jump', 'up', true);
+
+let particles = [];
+function spawnParticles(x, y, color, count = 6) {
+    for (let i = 0; i < count; i++) {
+        particles.push({
+            x, y,
+            vx: (Math.random() - 0.5) * 4,
+            vy: (Math.random() - 0.5) * 4 - 1,
+            life: 18, maxLife: 18, color
+        });
+    }
+}
+function updateParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx; p.y += p.vy; p.life--;
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+}
+function drawParticles() {
+    particles.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.life / p.maxLife;
+        ctx.fillRect(p.x - camera.x, p.y - camera.y, 4, 4);
+    });
+    ctx.globalAlpha = 1.0;
+}
+
+const camera = { x: 0, y: 0 };
+
+const player = {
+    x: 50, y: 300, w: 22, h: 20,
+    vx: 0, vy: 0,
+    speed: 3.3,
+    jumpPower: -8.8,
+    grounded: false,
+    facing: 'right',
+    invulnerableTimer: 0,
+    bubbleText: '',
+    bubbleTimer: 0,
+
+    reset(spawnX, spawnY) {
+        this.x = spawnX;
+        this.y = spawnY;
+        this.vx = 0; this.vy = 0;
+        this.invulnerableTimer = 60;
+    },
+
+    say(text, duration = 40) {
+        this.bubbleText = text;
+        this.bubbleTimer = duration;
+    },
+
+    jump() {
+        if (this.grounded && gameState === 'PLAYING') {
+            this.vy = this.jumpPower;
+            this.grounded = false;
+            let jumpMsg = ['喵！', '好高！', '飛起來~', '跳！'][Math.floor(Math.random() * 4)];
+            this.say(jumpMsg, 30);
+            spawnParticles(this.x + this.w / 2, this.y + this.h, '#fff', 4);
+        }
+    },
+
+    takeDamage(knockbackDir = 1) {
+        if (this.invulnerableTimer > 0) return;
+
+        hearts--;
+        this.invulnerableTimer = 60;
+        this.say('痛喵！(>_<)', 45);
+        this.vx = knockbackDir * 5;
+        this.vy = -3.5;
+        spawnParticles(this.x + this.w / 2, this.y + this.h / 2, '#ff4d4d', 10);
+
+        if (hearts <= 0) {
+            handleGameOver();
+        } else {
+            resetLevelObjects(levels[currentLevel]);
+            this.reset(levels[currentLevel].spawn.x, levels[currentLevel].spawn.y);
+        }
+    },
+
+    update(level) {
+        if (this.invulnerableTimer > 0) this.invulnerableTimer--;
+        if (this.bubbleTimer > 0) this.bubbleTimer--;
+
+        if (keys.left) { this.vx = -this.speed; this.facing = 'left'; }
+        else if (keys.right) { this.vx = this.speed; this.facing = 'right'; }
+        else { this.vx *= 0.7; }
+
+        this.vy += 0.45;
+
+        this.x += this.vx;
+        level.platforms.forEach(p => {
+            if (p.isVanished) return;
+            if (checkCollide(this, p)) {
+                if (this.vx > 0) this.x = p.x - this.w;
+                else if (this.vx < 0) this.x = p.x + p.w;
+            }
+        });
+
+        this.y += this.vy;
+        this.grounded = false;
+        level.platforms.forEach(p => {
+            if (p.isVanished) return;
+            if (checkCollide(this, p)) {
+                if (this.vy > 0 && (this.y + this.h - this.vy) <= p.y + 12) {
+                    this.y = p.y - this.h;
+                    this.vy = 0;
+                    this.grounded = true;
+
+                    if (p.isMoving) this.x += p.speed * p.dir;
+                    if (p.isDrop) { p.triggerDrop = true; this.say('哇！平台在掉！', 25); }
+                    if (p.isTimed && !p.stepped) {
+                        p.stepped = true;
+                        p.timer = p.maxTimer || 90;
+                        this.say('快踏空了！', 30);
+                    }
+                } else if (this.vy < 0) {
+                    this.y = p.y + p.h;
+                    this.vy = 0;
+                }
+            }
+        });
+
+        if (this.y > level.height + 80) {
+            this.takeDamage(0);
+        }
+    },
+
+    draw() {
+        if (this.invulnerableTimer > 0 && Math.floor(this.invulnerableTimer / 4) % 2 === 0) {
+            ctx.globalAlpha = 0.4;
+        }
+
+        const px = this.x - camera.x;
+        const py = this.y - camera.y;
+
+        ctx.fillStyle = '#fefae0'; ctx.fillRect(px, py + 4, 22, 16);
+        ctx.fillStyle = '#e76f51'; ctx.fillRect(this.facing === 'right' ? px + 12 : px + 2, py, 6, 5);
+        ctx.fillStyle = '#2b2b2b'; ctx.fillRect(this.facing === 'right' ? px + 3 : px + 11, py, 6, 5);
+        ctx.fillStyle = '#e76f51'; ctx.fillRect(px + 5, py + 6, 5, 5);
+        ctx.fillStyle = '#4a4e69'; ctx.fillRect(px + 12, py + 8, 5, 7);
+        ctx.fillStyle = '#000';
+        let eyeX = this.facing === 'right' ? px + 16 : px + 3;
+        ctx.fillRect(eyeX, py + 8, 3, 4);
+        ctx.fillStyle = '#e76f51';
+        let tailX = this.facing === 'right' ? px - 4 : px + 22;
+        ctx.fillRect(tailX, py + 8, 4, 7);
+
+        ctx.globalAlpha = 1.0;
+
+        if (this.bubbleTimer > 0) {
+            ctx.fillStyle = '#ff4d4d';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.fillText(this.bubbleText, px - 6, py - 8);
+        }
+    }
+};
+
+class Dog {
+    constructor(x, y, patrolL, patrolR) {
+        this.startX = x; this.startY = y;
+        this.x = x; this.y = y;
+        this.w = 24; this.h = 20;
+        this.patrolL = patrolL; this.patrolR = patrolR;
+        this.vx = 1.2; this.vy = 0;
+        this.isSquished = false;
+        this.barkText = '';
+        this.barkTimer = 0;
+        this.facing = 'right';
+    }
+
+    reset() {
+        this.x = this.startX;
+        this.y = this.startY;
+        this.vx = 1.2;
+        this.vy = 0;
+        this.isSquished = false;
+        this.barkTimer = 0;
+    }
+
+    say(text, duration = 30) {
+        this.barkText = text;
+        this.barkTimer = duration;
+    }
+
+    update(level) {
+        if (this.barkTimer > 0) this.barkTimer--;
+        if (this.isSquished) return;
+
+        let distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
+        let inSafeZone = Math.hypot(player.x - level.spawn.x, player.y - level.spawn.y) < 150;
+
+        if (distToPlayer < 150 && !inSafeZone) {
+            this.vx = player.x > this.x ? 1.8 : -1.8;
+            if (Math.random() < 0.02) this.say('站住喵賊！', 25);
+        } else {
+            if (this.x <= this.patrolL) this.vx = 1.2;
+            if (this.x >= this.patrolR) this.vx = -1.2;
+            if (Math.random() < 0.005) this.say('巡邏中~', 25);
+        }
+
+        this.facing = this.vx > 0 ? 'right' : 'left';
+        this.vy += 0.45;
+        this.x += this.vx;
+
+        level.platforms.forEach(p => {
+            if (p.isVanished) return;
+            if (checkCollide(this, p)) {
+                if (this.vx > 0) this.x = p.x - this.w;
+                else this.x = p.x + p.w;
+                this.vx *= -1;
+            }
+        });
+
+        this.y += this.vy;
+        level.platforms.forEach(p => {
+            if (p.isVanished) return;
+            if (checkCollide(this, p)) {
+                if (this.vy > 0) {
+                    this.y = p.y - this.h;
+                    this.vy = 0;
+                }
+            }
+        });
+
+        if (checkCollide(player, this)) {
+            if (player.vy > 0 && (player.y + player.h - player.vy) <= this.y + 8) {
+                this.isSquished = true;
+                this.say('汪！扁掉惹', 45);
+                player.say('踩！嘿嘿', 30);
+                player.vy = -6.5;
+                spawnParticles(this.x + this.w / 2, this.y, '#e9c46a', 8);
+            } else {
+                let knockDir = player.x > this.x ? 1 : -1;
+                player.takeDamage(knockDir);
+            }
+        }
+    }
+
+    draw() {
+        const px = this.x - camera.x;
+        const py = this.y - camera.y;
+
+        if (this.isSquished) {
+            ctx.fillStyle = '#f4a261'; ctx.fillRect(px, py + 12, 26, 8);
+            if (this.barkTimer > 0) {
+                ctx.fillStyle = '#d90429'; ctx.font = 'bold 12px sans-serif';
+                ctx.fillText(this.barkText, px - 4, py + 6);
+            }
+            return;
+        }
+
+        ctx.fillStyle = '#e9c46a'; ctx.fillRect(px, py + 4, 24, 16);
+        ctx.fillStyle = '#e76f51'; ctx.fillRect(this.facing === 'right' ? px + 2 : px + 16, py, 6, 7);
+        ctx.fillStyle = '#000';
+        let eyeX = this.facing === 'right' ? px + 18 : px + 3;
+        ctx.fillRect(eyeX, py + 7, 3, 4);
+        let noseX = this.facing === 'right' ? px + 22 : px;
+        ctx.fillRect(noseX, py + 11, 2, 3);
+
+        if (this.barkTimer > 0) {
+            ctx.fillStyle = '#2b2b2b';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.fillText(this.barkText, px - 6, py - 6);
+        }
+    }
+}
+
+function checkCollide(a, b) {
+    return a.x < b.x + b.w &&
+           a.x + a.w > b.x &&
+           a.y < b.y + b.h &&
+           a.y + a.h > b.y;
+}
+
+function resetLevelObjects(lvl) {
+    levelFishCollected = 0;
+    lvl.fishes.forEach(f => f.collected = false);
+
+    lvl.platforms.forEach(p => {
+        if (p.isDrop) {
+            p.y = p.startY;
+            p.vy = 0;
+            p.triggerDrop = false;
+        }
+        if (p.isMoving) {
+            p.x = p.startX;
+            p.dir = 1;
+        }
+        if (p.isTimed) {
+            p.stepped = false;
+            p.timer = 0;
+            p.isVanished = false;
+            p.respawnTimer = 0;
+        }
+    });
+
+    lvl.traps.forEach(t => {
+        if (t.isDynamic) {
+            t.active = false;
+            t.timer = 0;
+        }
+        if (t.isProximity) {
+            t.triggered = false;
+            t.active = false;
+        }
+    });
+
+    lvl.dogs.forEach(d => d.reset());
+}
+
+const levels = [
+    // 第一關
+    {
+        width: 1200, height: 450,
+        spawn: { x: 50, y: 300 },
+        platforms: [
+            { x: 0, y: 370, w: 420, h: 80, color: '#2a9d8f' },
+            { x: 490, y: 370, w: 710, h: 80, color: '#2a9d8f' },
+            { x: 180, y: 310, w: 90, h: 20, color: '#e9c46a' },
+            { x: 300, y: 250, w: 90, h: 20, color: '#e9c46a' }
+        ],
+        traps: [
+            { x: 420, y: 430, w: 70, h: 20, type: 'spike' }
+        ],
+        fishes: [
+            { x: 210, y: 280, collected: false },
+            { x: 330, y: 220, collected: false },
+            { x: 580, y: 330, collected: false },
+            { x: 750, y: 330, collected: false },
+            { x: 950, y: 330, collected: false }
+        ],
+        dogs: [ new Dog(650, 330, 520, 900) ],
+        exit: { x: 1120, y: 290, w: 40, h: 80 }
+    },
+    // 第二關
+    {
+        width: 1500, height: 450,
+        spawn: { x: 50, y: 300 },
+        platforms: [
+            { x: 0, y: 370, w: 260, h: 80, color: '#2a9d8f' },
+            { x: 300, y: 320, w: 100, h: 20, color: '#e9c46a' },
+            { x: 430, y: 270, w: 100, h: 20, color: '#e9c46a' },
+            { x: 560, y: 270, w: 110, h: 20, color: '#f4a261', isMoving: true, startX: 520, endX: 740, speed: 1.5, dir: 1 },
+            { x: 790, y: 370, w: 320, h: 80, color: '#2a9d8f' },
+            { x: 1180, y: 320, w: 320, h: 130, color: '#2a9d8f' }
+        ],
+        traps: [
+            { x: 260, y: 430, w: 530, h: 20, type: 'spike' },
+            { x: 880, y: 350, w: 40, h: 20, type: 'spike' }
+        ],
+        fishes: [
+            { x: 330, y: 280, collected: false },
+            { x: 460, y: 230, collected: false },
+            { x: 630, y: 220, collected: false },
+            { x: 830, y: 330, collected: false },
+            { x: 1250, y: 270, collected: false }
+        ],
+        dogs: [
+            new Dog(830, 330, 800, 1080),
+            new Dog(1220, 270, 1200, 1450)
+        ],
+        exit: { x: 1420, y: 240, w: 40, h: 80 }
+    },
+    // 第三關
+    {
+        width: 1800, height: 450,
+        spawn: { x: 50, y: 300 },
+        platforms: [
+            { x: 0, y: 370, w: 220, h: 80, color: '#2a9d8f' },
+            { x: 270, y: 320, w: 85, h: 20, color: '#e76f51', isTimed: true, maxTimer: 90, timer: 0, stepped: false, isVanished: false, respawnTimer: 0 },
+            { x: 390, y: 280, w: 90, h: 20, color: '#e9c46a' },
+            { x: 520, y: 240, w: 100, h: 20, color: '#e9c46a' },
+            { x: 660, y: 370, w: 450, h: 80, color: '#2a9d8f' },
+            { x: 1170, y: 320, w: 85, h: 20, color: '#e76f51', isTimed: true, maxTimer: 90, timer: 0, stepped: false, isVanished: false, respawnTimer: 0 },
+            { x: 1300, y: 270, w: 85, h: 20, color: '#e9c46a' },
+            { x: 1440, y: 370, w: 360, h: 80, color: '#2a9d8f' }
+        ],
+        traps: [
+            { x: 220, y: 430, w: 440, h: 20, type: 'spike' },
+            { x: 420, y: 260, w: 30, h: 20, type: 'spike', isProximity: true, triggerDist: 80, active: false },
+            { x: 580, y: 220, w: 20, h: 20, type: 'spike' },
+            { x: 760, y: 350, w: 40, h: 20, type: 'spike', isDynamic: true, active: false, timer: 0 },
+            { x: 920, y: 350, w: 40, h: 20, type: 'spike' },
+            { x: 1110, y: 430, w: 330, h: 20, type: 'spike' },
+            { x: 1660, y: 350, w: 30, h: 20, type: 'spike', isProximity: true, triggerDist: 80, active: false }
+        ],
+        fishes: [
+            { x: 290, y: 280, collected: false },
+            { x: 420, y: 230, collected: false },
+            { x: 540, y: 190, collected: false },
+            { x: 700, y: 330, collected: false },
+            { x: 1500, y: 330, collected: false }
+        ],
+        dogs: [
+            new Dog(700, 330, 670, 1050),
+            new Dog(860, 330, 670, 1050),
+            new Dog(1500, 330, 1460, 1750)
+        ],
+        exit: { x: 1740, y: 290, w: 40, h: 80 }
+    }
+];
+
+function nextStory(page) {
+    if (page === 1) {
+        document.getElementById('intro-screen-1').style.display = 'none';
+        document.getElementById('intro-screen-2').style.display = 'flex';
+    }
+}
+
+function startGame() {
+    document.getElementById('intro-screen-2').style.display = 'none';
+    gameState = 'PLAYING';
+    loadLevel(0);
+}
+
+function loadLevel(lvlIdx) {
+    currentLevel = lvlIdx;
+    let lvl = levels[currentLevel];
+    
+    hearts = TOTAL_HEARTS;
+    
+    resetLevelObjects(lvl);
+    player.reset(lvl.spawn.x, lvl.spawn.y);
+    player.say(`進入第 ${currentLevel + 1} 關！喵`, 45);
+}
+
+// 死亡 10 次對話介面觸發邏輯
+function handleGameOver() {
+    gameState = 'MSG';
+    const msgTitle = document.getElementById('msg-title');
+    const msgContent = document.getElementById('msg-content');
+    const btnGroup = document.getElementById('msg-btn-group');
+    
+    msgTitle.innerText = "💀 10顆心耗盡死亡！";
+    btnGroup.innerHTML = ''; // 清空按鈕組
+
+    if (currentLevel === 0) {
+        msgContent.innerText = "痾…這個那麼簡單你還過不了，你爛透了^_^";
+        btnGroup.innerHTML = `<button class="btn" onclick="closeMsg()">重新開始</button>`;
+    } else if (currentLevel === 1) {
+        msgContent.innerText = "加油，你到第二關了，還有第三關:D";
+        btnGroup.innerHTML = `<button class="btn" onclick="closeMsg()">重新開始</button>`;
+    } else if (currentLevel === 2) {
+        showLevel3Question();
+    }
+    
+    document.getElementById('msg-screen').style.display = 'flex';
+}
+
+// 第三關獨有的死亡問答流程
+function showLevel3Question() {
+    const msgTitle = document.getElementById('msg-title');
+    const msgContent = document.getElementById('msg-content');
+    const btnGroup = document.getElementById('msg-btn-group');
+
+    msgTitle.innerText = "💀 第三關考驗";
+    msgContent.innerText = "你覺得這個遊戲好玩嗎030？";
+    btnGroup.innerHTML = `
+        <button class="btn" onclick="answerFun(true)">好玩</button>
+        <button class="btn" onclick="answerFun(false)">不好玩</button>
+    `;
+}
+
+function answerFun(isFun) {
+    const msgTitle = document.getElementById('msg-title');
+    const msgContent = document.getElementById('msg-content');
+    const btnGroup = document.getElementById('msg-btn-group');
+
+    if (isFun) {
+        msgTitle.innerText = "🎉 秘密揭曉！";
+        msgContent.innerText = "好玩就好～崵崵生日快樂～密碼是we1214";
+        btnGroup.innerHTML = `<button class="btn" onclick="closeMsg()">好玩,再玩一次^ ^</button>`;
+    } else {
+        msgTitle.innerText = "哼！";
+        msgContent.innerText = "好啊！那你別想知道密碼了==";
+        btnGroup.innerHTML = `<button class="btn" onclick="showLevel3Question()">我知道錯了</button>`;
+    }
+}
+
+// 通關破關畫面
+function winLevel() {
+    if (currentLevel < levels.length - 1) {
+        currentLevel++;
+        loadLevel(currentLevel);
+    } else {
+        gameState = 'MSG';
+        document.getElementById('msg-title').innerText = "🎉 恭喜通關！";
+        document.getElementById('msg-content').innerText = "哇～你竟然過了 !但要死掉10次才會給你密碼歐～♡";
+        document.getElementById('msg-btn-group').innerHTML = `<button class="btn" onclick="closeMsg()">今天必須得鼠嗎QAQ</button>`;
+        document.getElementById('msg-screen').style.display = 'flex';
+    }
+}
+
+function closeMsg() {
+    document.getElementById('msg-screen').style.display = 'none';
+    loadLevel(currentLevel);
+    gameState = 'PLAYING';
+}
+
+function gameLoop() {
+    if (gameState === 'PLAYING') {
+        let lvl = levels[currentLevel];
+
+        lvl.platforms.forEach(p => {
+            if (p.isMoving) {
+                p.x += p.speed * p.dir;
+                if (p.x > p.endX || p.x < p.startX) p.dir *= -1;
+            }
+            if (p.isDrop && p.triggerDrop) {
+                p.vy = (p.vy || 0) + 0.5;
+                p.y += p.vy;
+            }
+            if (p.isTimed && p.stepped && !p.isVanished) {
+                p.timer--;
+                if (p.timer <= 0) {
+                    p.isVanished = true;
+                    p.respawnTimer = 120;
+                    spawnParticles(p.x + p.w / 2, p.y + p.h / 2, '#e76f51', 12);
+                }
+            } else if (p.isVanished) {
+                p.respawnTimer--;
+                if (p.respawnTimer <= 0) {
+                    p.isVanished = false;
+                    p.stepped = false;
+                }
+            }
+        });
+
+        lvl.traps.forEach(t => {
+            if (t.isDynamic) {
+                t.timer = (t.timer || 0) + 1;
+                if (t.timer % 120 === 0) {
+                    t.active = !t.active;
+                }
+            }
+            if (t.isProximity) {
+                let dist = Math.hypot(player.x - t.x, player.y - t.y);
+                if (dist < t.triggerDist && !t.triggered) {
+                    t.triggered = true;
+                    t.active = true;
+                    player.say('危險！刺長出來了！', 25);
+                }
+            }
+        });
+
+        player.update(lvl);
+        lvl.dogs.forEach(d => d.update(lvl));
+
+        lvl.traps.forEach(t => {
+            if ((t.isDynamic || t.isProximity) && !t.active) return;
+            if (checkCollide(player, t)) {
+                player.takeDamage(0);
+            }
+        });
+
+        lvl.fishes.forEach(f => {
+            if (!f.collected && checkCollide(player, { x: f.x, y: f.y, w: 16, h: 16 })) {
+                f.collected = true;
+                levelFishCollected++;
+                player.say(`好吃的魚！(${levelFishCollected}/5)`, 30);
+                spawnParticles(f.x + 8, f.y + 8, '#4ea8de', 8);
+            }
+        });
+
+        if (checkCollide(player, lvl.exit)) {
+            if (levelFishCollected >= 5) {
+                winLevel();
+            } else {
+                player.say('魚魚還沒集滿！', 20);
+            }
+        }
+
+        camera.x = Math.max(0, Math.min(player.x - canvas.width / 2, lvl.width - canvas.width));
+        camera.y = 0;
+
+        updateParticles();
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (gameState === 'PLAYING' || gameState === 'MSG') {
+        let lvl = levels[currentLevel];
+
+        ctx.fillStyle = '#70c5ce';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        lvl.platforms.forEach(p => {
+            if (p.isVanished) return;
+            ctx.fillStyle = p.color || '#2a9d8f';
+            ctx.fillRect(p.x - camera.x, p.y - camera.y, p.w, p.h);
+            ctx.fillStyle = p.isTimed ? '#f4a261' : '#e9c46a';
+            ctx.fillRect(p.x - camera.x, p.y - camera.y, p.w, 4);
+        });
+
+        lvl.traps.forEach(t => {
+            if ((t.isDynamic || t.isProximity) && !t.active) return;
+            ctx.fillStyle = '#e76f51';
+            let spikes = Math.floor(t.w / 10);
+            for (let i = 0; i < spikes; i++) {
+                ctx.beginPath();
+                ctx.moveTo(t.x + i * 10 - camera.x, t.y + t.h - camera.y);
+                ctx.lineTo(t.x + i * 10 + 5 - camera.x, t.y - camera.y);
+                ctx.lineTo(t.x + (i + 1) * 10 - camera.x, t.y + t.h - camera.y);
+                ctx.fill();
+            }
+        });
+
+        lvl.fishes.forEach(f => {
+            if (!f.collected) {
+                let fx = f.x - camera.x;
+                let fy = f.y - camera.y;
+                ctx.fillStyle = '#4ea8de';
+                ctx.fillRect(fx, fy + 4, 12, 8);
+                ctx.fillRect(fx + 12, fy + 2, 4, 12);
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(fx + 2, fy + 5, 2, 2);
+            }
+        });
+
+        let ex = lvl.exit.x - camera.x;
+        let ey = lvl.exit.y - camera.y;
+        ctx.fillStyle = levelFishCollected >= 5 ? '#2a9d8f' : '#6c757d';
+        ctx.fillRect(ex, ey, lvl.exit.w, lvl.exit.h);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillText(levelFishCollected >= 5 ? '出口(開)' : '集滿魚', ex - 5, ey - 8);
+
+        lvl.dogs.forEach(d => d.draw());
+        player.draw();
+        drawParticles();
+
+        ctx.font = '18px sans-serif';
+        let heartStr = '';
+        for (let i = 0; i < hearts; i++) heartStr += '❤️';
+        ctx.textAlign = 'right';
+        ctx.fillText(heartStr, canvas.width - 15, 30);
+
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillText(`關卡 ${currentLevel + 1} | 🐟 小魚: ${levelFishCollected} / 5`, 15, 30);
+    }
+
+    requestAnimationFrame(gameLoop);
+}
+
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
